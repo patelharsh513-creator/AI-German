@@ -639,8 +639,14 @@ const LessonPage: React.FC<LessonPageProps> = ({
 
   useEffect(() => {
     const checkApiKey = async () => {
+      if (!(window as any).aistudio) {
+        console.warn('window.aistudio is not available. API key selection is disabled.');
+        setIsApiKeySelected(false);
+        setIsCheckingApiKey(false);
+        return;
+      }
       try {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
+        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
         setIsApiKeySelected(hasKey);
       } catch (e) {
         console.error("Error checking for API key:", e);
@@ -817,6 +823,11 @@ const LessonPage: React.FC<LessonPageProps> = ({
   };
 
   const handleSelectApiKey = async () => {
+    if (!(window as any).aistudio) {
+      console.error("Could not open API key selection: window.aistudio is not defined.");
+      setMicrophoneError("API Key selection is not available in this environment.");
+      return;
+    }
     try {
       await (window as any).aistudio.openSelectKey();
       // Assume success to handle race condition and avoid another check
