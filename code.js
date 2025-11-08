@@ -850,7 +850,7 @@ const App = () => {
           )
         )
       ) : (
-        React.createElement(LessonPage, {
+        React.createElement(LessonPage, { 
           selectedLanguage,
           selectedGermanLevel,
           selectedLessonTitle,
