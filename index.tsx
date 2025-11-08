@@ -53,7 +53,6 @@ export const GEMINI_LIVE_MODEL = 'gemini-2.5-flash-native-audio-preview-09-2025'
 export const AUDIO_INPUT_SAMPLE_RATE = 16000;
 export const AUDIO_OUTPUT_SAMPLE_RATE = 24000;
 export const AUDIO_CHANNELS = 1;
-export const AUDIO_BUFFER_SIZE = 4096;
 
 export const AVAILABLE_LANGUAGES = [
   'English', 'Gujarati', 'Hindi', 
@@ -172,7 +171,7 @@ export const LIVE_SESSION_BASE_CONFIG = {
 // --- START OF INLINED GEMINI SERVICE ---
 let currentSession: Awaited<ReturnType<GoogleGenAI['live']['connect']>> | null = null;
 let inputAudioContext: AudioContext | null = null;
-let scriptProcessor: ScriptProcessorNode | null = null;
+let audioWorkletNode: AudioWorkletNode | null = null;
 let mediaStreamSource: MediaStreamAudioSourceNode | null = null;
 let outputAudioContext: AudioContext | null = null;
 let outputNode: GainNode | null = null;
@@ -229,6 +228,22 @@ function createBlob(data: Float32Array): GenAIBlob {
   };
 }
 
+const audioWorkletProcessor = `
+  class AudioProcessor extends AudioWorkletProcessor {
+    process(inputs, outputs, parameters) {
+      const input = inputs[0];
+      if (input && input.length > 0) {
+        const inputData = input[0];
+        if (inputData) {
+          this.port.postMessage(inputData);
+        }
+      }
+      return true;
+    }
+  }
+  registerProcessor('audio-processor', AudioProcessor);
+`;
+
 export async function initLiveSession(
   apiKey: string,
   stream: MediaStream,
@@ -246,6 +261,10 @@ export async function initLiveSession(
   outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: AUDIO_OUTPUT_SAMPLE_RATE });
   outputNode = outputAudioContext.createGain();
   outputNode.connect(outputAudioContext.destination);
+
+  const workletBlob = new Blob([audioWorkletProcessor], { type: 'application/javascript' });
+  const workletURL = URL.createObjectURL(workletBlob);
+  await inputAudioContext.audioWorklet.addModule(workletURL);
 
   const systemInstruction = getSystemInstruction(
     explanationLanguage,
@@ -277,18 +296,17 @@ export async function initLiveSession(
         }
 
         mediaStreamSource = inputAudioContext!.createMediaStreamSource(new MediaStream([audioTrack]));
-        scriptProcessor = inputAudioContext!.createScriptProcessor(AUDIO_BUFFER_SIZE, AUDIO_CHANNELS, AUDIO_CHANNELS);
-
-        scriptProcessor.onaudioprocess = (audioProcessingEvent: AudioProcessingEvent) => {
-          const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
-          const pcmBlob = createBlob(inputData);
+        audioWorkletNode = new AudioWorkletNode(inputAudioContext!, 'audio-processor');
+        
+        audioWorkletNode.port.onmessage = (event) => {
+          const pcmBlob = createBlob(event.data);
           sessionPromise.then((session) => {
             session.sendRealtimeInput({ media: pcmBlob });
           });
         };
 
-        mediaStreamSource.connect(scriptProcessor);
-        scriptProcessor.connect(inputAudioContext!.destination);
+        mediaStreamSource.connect(audioWorkletNode);
+        audioWorkletNode.connect(inputAudioContext!.destination);
       },
       onmessage: async (message: LiveServerMessage) => {
         await callbacks.onMessage(message);
@@ -358,10 +376,10 @@ export function stopLiveSession(): void {
     currentSession.close();
     currentSession = null;
   }
-  if (scriptProcessor) {
-    scriptProcessor.disconnect();
-    scriptProcessor.onaudioprocess = null;
-    scriptProcessor = null;
+  if (audioWorkletNode) {
+    audioWorkletNode.port.onmessage = null;
+    audioWorkletNode.disconnect();
+    audioWorkletNode = null;
   }
   if (mediaStreamSource) {
     mediaStreamSource.disconnect();
