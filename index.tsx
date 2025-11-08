@@ -1376,7 +1376,19 @@ const App: React.FC = () => {
   const handleUpdateUserData = async (data: Partial<UserData>) => {
     if (!user) return;
     const userRef = db.collection('users').doc(user.uid);
-    await userRef.set(data, { merge: true });
+    
+    // Create a clean object for Firestore, removing any undefined values
+    const cleanData: { [key: string]: any } = {};
+    Object.keys(data).forEach(key => {
+        const value = data[key as keyof UserData];
+        if (value !== undefined) {
+            cleanData[key] = value;
+        }
+    });
+
+    if (Object.keys(cleanData).length > 0) {
+        await userRef.set(cleanData, { merge: true });
+    }
     setUserData(prev => ({ ...prev!, ...data }));
   };
 
