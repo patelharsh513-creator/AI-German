@@ -2,7 +2,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { v4 as uuidv4 } from 'uuid';
-// FIX: Import `Modality` from `@google/genai` to use in `LIVE_SESSION_BASE_CONFIG`.
 import { GoogleGenAI, LiveServerMessage, Blob as GenAIBlob, FunctionCall, Modality } from "@google/genai";
 
 // --- START OF INLINED TYPES ---
@@ -26,7 +25,7 @@ export interface LiveSessionCallbacks {
   onError: (error: ErrorEvent) => void;
   onClose: (event: CloseEvent) => void;
   onOpen: () => void;
-  onModelSpeaking: (speaking: boolean) => void; // Added for visual feedback
+  onModelSpeaking: (speaking: boolean) => void;
 }
 
 export interface StreamData {
@@ -43,7 +42,7 @@ export interface Lesson {
   id: string;
   title: string;
   description: string;
-  subTopics?: SubTopic[]; // Lessons can now have sub-topics
+  subTopics?: SubTopic[];
 }
 // --- END OF INLINED TYPES ---
 
@@ -160,7 +159,6 @@ Start by warmly greeting the student in ${explanationLanguage}. Then, immediatel
 };
 
 
-// FIX: Use `Modality.AUDIO` instead of the string 'AUDIO' to match the expected type.
 export const LIVE_SESSION_BASE_CONFIG = {
   responseModalities: [Modality.AUDIO],
   outputAudioTranscription: {},
@@ -232,6 +230,7 @@ function createBlob(data: Float32Array): GenAIBlob {
 }
 
 export async function initLiveSession(
+  apiKey: string,
   stream: MediaStream,
   callbacks: LiveSessionCallbacks,
   explanationLanguage: string,
@@ -241,7 +240,7 @@ export async function initLiveSession(
   selectedSubTopicTitle?: string,
   selectedSubTopicDescription?: string,
 ): Promise<void> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
 
   inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: AUDIO_INPUT_SAMPLE_RATE });
   outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: AUDIO_OUTPUT_SAMPLE_RATE });
@@ -391,6 +390,63 @@ export function stopLiveSession(): void {
 
 
 // --- START OF INLINED COMPONENTS ---
+
+// ApiKeyEntryScreen.tsx
+interface ApiKeyEntryScreenProps {
+  onApiKeySubmit: (key: string) => void;
+}
+
+const ApiKeyEntryScreen: React.FC<ApiKeyEntryScreenProps> = ({ onApiKeySubmit }) => {
+  const [key, setKey] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = () => {
+    if (!key.trim()) {
+      setError('API Key cannot be empty.');
+      return;
+    }
+    setError('');
+    onApiKeySubmit(key);
+  };
+
+  return (
+    <div className="flex items-center justify-center h-full w-full bg-gray-100">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">German Language Tutor</h1>
+          <p className="mt-2 text-sm text-gray-600">Please enter your Gemini API Key to begin.</p>
+        </div>
+        <div className="flex flex-col space-y-2">
+          <label htmlFor="api-key-input" className="text-sm font-medium text-gray-700">Gemini API Key</label>
+          <input
+            id="api-key-input"
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+            className="w-full px-4 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Enter your API key"
+          />
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+        <div>
+          <button
+            onClick={handleSubmit}
+            className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Save and Continue
+          </button>
+        </div>
+        <div className="text-xs text-gray-500 text-center">
+          <p>You can get a Gemini API key from Google AI Studio.</p>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="font-medium text-blue-600 hover:underline">
+            Get an API Key
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // GermanWordDisplay.tsx
 interface GermanWordDisplayProps {
@@ -593,6 +649,7 @@ const Controls: React.FC<ControlsProps> = ({
 
 // LessonPage.tsx
 interface LessonPageProps {
+  apiKey: string;
   selectedLanguage: string;
   selectedGermanLevel: string;
   selectedLessonTitle: string | null;
@@ -604,6 +661,7 @@ interface LessonPageProps {
 }
 
 const LessonPage: React.FC<LessonPageProps> = ({
+  apiKey,
   selectedLanguage,
   selectedGermanLevel,
   selectedLessonTitle,
@@ -620,9 +678,6 @@ const LessonPage: React.FC<LessonPageProps> = ({
   const [isModelSpeaking, setIsModelSpeaking] = useState<boolean>(false);
   const [microphoneError, setMicrophoneError] = useState<string | null>(null);
 
-  const [isApiKeySelected, setIsApiKeySelected] = useState<boolean>(false);
-  const [isCheckingApiKey, setIsCheckingApiKey] = useState<boolean>(true);
-
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [currentInputTranscription, setCurrentInputTranscription] = useState<string>('');
   const [currentOutputTranscription, setCurrentOutputTranscription] = useState<string>('');
@@ -636,27 +691,6 @@ const LessonPage: React.FC<LessonPageProps> = ({
 
   const currentOutputTranscriptionRef = useRef('');
   currentOutputTranscriptionRef.current = currentOutputTranscription; 
-
-  useEffect(() => {
-    const checkApiKey = async () => {
-      if (!(window as any).aistudio) {
-        console.warn('window.aistudio is not available. API key selection is disabled.');
-        setIsApiKeySelected(false);
-        setIsCheckingApiKey(false);
-        return;
-      }
-      try {
-        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-        setIsApiKeySelected(hasKey);
-      } catch (e) {
-        console.error("Error checking for API key:", e);
-        setIsApiKeySelected(false);
-      } finally {
-        setIsCheckingApiKey(false);
-      }
-    };
-    checkApiKey();
-  }, []);
 
   const handleLiveMessage = useCallback(async (message: LiveServerMessage) => {
     if (message.serverContent?.outputTranscription) {
@@ -703,12 +737,15 @@ const LessonPage: React.FC<LessonPageProps> = ({
   const handleLiveError = useCallback((error: ErrorEvent) => {
     lastEventWasError.current = true;
     console.error("Live session error:", error);
-    let detailedErrorMessage = error.message;
-    const errorText = error.message.toLowerCase();
-    if (errorText.includes('api key') || errorText.includes('network error') || errorText.includes('not found') || errorText.includes('invalid argument')) {
-      setIsApiKeySelected(false); // Reset key status to prompt user again
-      detailedErrorMessage = `A connection error occurred, which might be due to an invalid API key. Please check your key and try again. For more info on keys and billing, see ai.google.dev/gemini-api/docs/billing. Original error: ${error.message}`;
+    let detailedErrorMessage = `An unknown error occurred: ${error.message}`;
+    const errorText = error.message ? error.message.toLowerCase() : '';
+    
+    if (errorText.includes('api key') || errorText.includes('permission denied') || errorText.includes('invalid')) {
+      detailedErrorMessage = `A connection error occurred. This is often due to an invalid or disabled API key. Please verify your key and try again. Original error: ${error.message}`;
+    } else if (errorText.includes('network error') || errorText.includes('failed to fetch')) {
+        detailedErrorMessage = `A network error occurred. Please check your internet connection. Original error: ${error.message}`;
     }
+    
     onStopLesson(detailedErrorMessage);
   }, [onStopLesson]);
   
@@ -758,6 +795,7 @@ const LessonPage: React.FC<LessonPageProps> = ({
     setChatHistory(prev => [...prev, { id: uuidv4(), role: MessageRole.INFO, text: 'Connecting to ANAYA...' }]);
     try {
       await initLiveSession(
+        apiKey,
         stream,
         liveSessionCallbacks,
         selectedLanguage,
@@ -771,7 +809,7 @@ const LessonPage: React.FC<LessonPageProps> = ({
       console.error("Failed to initialize Live Session:", error);
       handleLiveError(new ErrorEvent('initError', { message: (error as Error).message }));
     }
-  }, [isConnectingToAI, isStreaming, liveSessionCallbacks, selectedLanguage, selectedGermanLevel, selectedLessonTitle, selectedLessonDescription, selectedSubTopicTitle, selectedSubTopicDescription]);
+  }, [apiKey, isConnectingToAI, isStreaming, liveSessionCallbacks, selectedLanguage, selectedGermanLevel, selectedLessonTitle, selectedLessonDescription, selectedSubTopicTitle, selectedSubTopicDescription]);
 
   const stopConversation = useCallback(() => {
     console.debug("Stopping conversation...");
@@ -819,23 +857,6 @@ const LessonPage: React.FC<LessonPageProps> = ({
       handleMicrophoneStreamReady(stream);
     } catch (error) {
       handleMicrophoneStreamError(error as Error);
-    }
-  };
-
-  const handleSelectApiKey = async () => {
-    if (!(window as any).aistudio) {
-      console.error("Could not open API key selection: window.aistudio is not defined.");
-      setMicrophoneError("API Key selection is not available in this environment.");
-      return;
-    }
-    try {
-      await (window as any).aistudio.openSelectKey();
-      // Assume success to handle race condition and avoid another check
-      setIsApiKeySelected(true);
-      setIsCheckingApiKey(false);
-    } catch (e) {
-      console.error("Could not open API key selection:", e);
-      setMicrophoneError("There was an issue opening the API key selection dialog.");
     }
   };
 
@@ -888,41 +909,15 @@ const LessonPage: React.FC<LessonPageProps> = ({
             {microphoneError && (
               <p className="text-red-600 text-sm mb-2" role="alert">{microphoneError}</p>
             )}
-
-            {isCheckingApiKey ? (
-              <button
-                disabled
-                className="w-full py-3 px-6 rounded-lg text-lg font-semibold bg-gray-300 text-white cursor-not-allowed"
-              >
-                Checking API Key...
-              </button>
-            ) : !isApiKeySelected ? (
-              <div>
-                <button
-                  onClick={handleSelectApiKey}
-                  className="w-full py-3 px-6 rounded-lg text-lg font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors duration-200"
-                  aria-label="Set up Gemini API Key"
-                >
-                  Setup Gemini API Key
-                </button>
-                <p className="text-xs text-gray-500 mt-2">
-                  To begin your lesson, you must first select a Gemini API key.
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline ml-1">
-                    Learn about billing
-                  </a>.
-                </p>
-              </div>
-            ) : (
-              <button
-                onClick={handleStartAudioCall}
-                disabled={isLoadingApp || isConnectingToAI || isMicrophoneRequesting} 
-                className={`w-full py-3 px-6 rounded-lg text-lg font-semibold transition-colors duration-200
-                  ${isLoadingApp || isConnectingToAI || isMicrophoneRequesting ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-                aria-label="Start audio lesson"
-              >
-                {isLoadingApp ? 'Loading App...' : (isMicrophoneRequesting ? 'Requesting Microphone...' : (isConnectingToAI ? 'Connecting...' : 'Start Audio Lesson'))}
-              </button>
-            )}
+            <button
+              onClick={handleStartAudioCall}
+              disabled={isLoadingApp || isConnectingToAI || isMicrophoneRequesting} 
+              className={`w-full py-3 px-6 rounded-lg text-lg font-semibold transition-colors duration-200
+                ${isLoadingApp || isConnectingToAI || isMicrophoneRequesting ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              aria-label="Start audio lesson"
+            >
+              {isLoadingApp ? 'Loading App...' : (isMicrophoneRequesting ? 'Requesting Microphone...' : (isConnectingToAI ? 'Connecting...' : 'Start Audio Lesson'))}
+            </button>
           </div>
         )}
 
@@ -953,6 +948,7 @@ interface LessonSelectionProps {
   onStartLesson: (lessonId: string, lessonTitle: string, lessonDescription: string, subTopicId: string | null, subTopicTitle: string | null, subTopicDescription: string | null) => void;
   globalError: string | null;
   onClearError: () => void;
+  onClearApiKey: () => void;
 }
 
 const LessonSelection: React.FC<LessonSelectionProps> = ({
@@ -968,6 +964,7 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
   onStartLesson,
   globalError,
   onClearError,
+  onClearApiKey,
 }) => {
   const [isNavigatingToLessonPage, setIsNavigatingToLessonPage] = useState<boolean>(false);
   const currentLessons: Lesson[] = GERMAN_LESSONS_BY_LEVEL.get(selectedGermanLevel) || [];
@@ -1017,7 +1014,16 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
   return (
     <div className="flex flex-col p-4 bg-white rounded-lg shadow-lg h-full">
       <div className="flex-shrink-0 pb-4 space-y-4">
-        <h2 className="text-2xl font-bold text-gray-800 text-center">Choose Your Lesson</h2>
+        <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-gray-800">Choose Your Lesson</h2>
+            <button
+              onClick={onClearApiKey}
+              className="text-xs text-gray-500 hover:text-gray-800 hover:underline"
+            >
+              Change API Key
+            </button>
+        </div>
+        
 
         {globalError && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md relative" role="alert">
@@ -1161,6 +1167,7 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
 // --- START OF APP COMPONENT ---
 type Page = 'lessonSelection' | 'lessonPage';
 
+const LS_API_KEY = 'germanTutor_apiKey';
 const LS_LANGUAGE = 'germanTutor_language';
 const LS_GERMAN_LEVEL = 'germanTutor_germanLevel';
 const LS_LESSON_ID = 'germanTutor_lessonId';
@@ -1171,6 +1178,7 @@ const LS_SUBTOPIC_TITLE = 'germanTutor_subTopicTitle';
 const LS_SUBTOPIC_DESCRIPTION = 'germanTutor_subTopicDescription';
 
 const App: React.FC = () => {
+  const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem(LS_API_KEY));
   const [currentPage, setCurrentPage] = useState<Page>('lessonSelection');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -1199,6 +1207,16 @@ const App: React.FC = () => {
   const [selectedSubTopicDescription, setSelectedSubTopicDescription] = useState<string | null>(
     localStorage.getItem(LS_SUBTOPIC_DESCRIPTION)
   );
+
+  const handleApiKeySubmit = (key: string) => {
+    localStorage.setItem(LS_API_KEY, key);
+    setApiKey(key);
+  };
+
+  const handleClearApiKey = () => {
+    localStorage.removeItem(LS_API_KEY);
+    setApiKey(null);
+  };
 
   const clearErrors = useCallback(() => {
     setGlobalError(null);
@@ -1255,6 +1273,10 @@ const App: React.FC = () => {
     setCurrentPage('lessonSelection');
   }, []);
 
+  if (!apiKey) {
+    return <ApiKeyEntryScreen onApiKeySubmit={handleApiKeySubmit} />;
+  }
+
   return (
     <div className="relative flex flex-col lg:flex-row h-full w-full max-w-6xl mx-auto bg-gray-100 rounded-xl shadow-2xl p-4">
       {currentPage === 'lessonSelection' ? (
@@ -1279,11 +1301,13 @@ const App: React.FC = () => {
               onStartLesson={handleStartLesson}
               globalError={globalError}
               onClearError={clearErrors}
+              onClearApiKey={handleClearApiKey}
             />
           </div>
         </div>
       ) : (
         <LessonPage
+          apiKey={apiKey}
           selectedLanguage={selectedLanguage}
           selectedGermanLevel={selectedGermanLevel}
           selectedLessonTitle={selectedLessonTitle}
