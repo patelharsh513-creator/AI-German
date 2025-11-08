@@ -225,6 +225,15 @@ function createBlob(data: Float32Array): GenAIBlob {
   };
 }
 
+function mapLanguageToCode(language: string): string {
+  const languageMap: { [key: string]: string } = {
+    'English': 'en-US',
+    'Gujarati': 'gu-IN',
+    'Hindi': 'hi-IN',
+  };
+  return languageMap[language] || 'en-US';
+}
+
 export async function initLiveSession(
   stream: MediaStream,
   callbacks: LiveSessionCallbacks,
@@ -254,6 +263,9 @@ export async function initLiveSession(
   const liveSessionConfig = {
     ...LIVE_SESSION_BASE_CONFIG,
     systemInstruction,
+    inputAudioTranscription: {
+      languageCodes: [mapLanguageToCode(explanationLanguage), 'de'],
+    },
   };
 
   const sessionPromise = ai.live.connect({
