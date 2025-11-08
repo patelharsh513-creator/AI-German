@@ -3,6 +3,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { v4 as uuidv4 } from 'uuid';
 import { GoogleGenAI, LiveServerMessage, Blob as GenAIBlob, FunctionCall, Modality } from "@google/genai";
+// FIX: Add missing firebase imports
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 
 // --- START OF INLINED TYPES ---
 export enum MessageRole {
@@ -44,7 +48,39 @@ export interface Lesson {
   description: string;
   subTopics?: SubTopic[];
 }
+
+export interface UserData {
+  apiKey?: string;
+  selectedLanguage?: string;
+  selectedGermanLevel?: string;
+  selectedLessonId?: string;
+  selectedLessonTitle?: string;
+  selectedLessonDescription?: string;
+  selectedSubTopicId?: string;
+  selectedSubTopicTitle?: string;
+  selectedSubTopicDescription?: string;
+}
 // --- END OF INLINED TYPES ---
+
+// --- START OF FIREBASE SETUP ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCuSqWDroNrLvAFh6ro6tD7sQMFQAnejhs",
+  authDomain: "ai-german-8c888.firebaseapp.com",
+  databaseURL: "https://ai-german-8c888-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ai-german-8c888",
+  storageBucket: "ai-german-8c888.appspot.com",
+  messagingSenderId: "718186572803",
+  appId: "1:718186572803:web:7ee55deaca5560c713b236"
+};
+
+// Initialize Firebase
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+// --- END OF FIREBASE SETUP ---
 
 
 // --- START OF INLINED CONSTANTS ---
@@ -409,12 +445,91 @@ export function stopLiveSession(): void {
 
 // --- START OF INLINED COMPONENTS ---
 
+// AuthScreen.tsx
+interface AuthScreenProps {
+  onAuthSuccess: () => void;
+}
+const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleAuth = async () => {
+    if (!email || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      if (isLogin) {
+        await auth.signInWithEmailAndPassword(email, password);
+      } else {
+        await auth.createUserWithEmailAndPassword(email, password);
+      }
+      onAuthSuccess();
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center h-full w-full bg-gray-100">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">German Language Tutor</h1>
+          <p className="mt-2 text-sm text-gray-600">{isLogin ? 'Welcome back! Please log in.' : 'Create an account to start learning.'}</p>
+        </div>
+        <div className="flex flex-col space-y-4">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Email address"
+            disabled={loading}
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
+            className="w-full px-4 py-2 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Password"
+            disabled={loading}
+          />
+          {error && <p className="text-xs text-red-600 text-center">{error}</p>}
+        </div>
+        <div>
+          <button
+            onClick={handleAuth}
+            disabled={loading}
+            className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300"
+          >
+            {loading ? 'Processing...' : (isLogin ? 'Login' : 'Sign Up')}
+          </button>
+        </div>
+        <div className="text-sm text-center">
+          <button onClick={() => setIsLogin(!isLogin)} className="font-medium text-blue-600 hover:underline">
+            {isLogin ? 'Need an account? Sign up' : 'Already have an account? Login'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 // ApiKeyEntryScreen.tsx
 interface ApiKeyEntryScreenProps {
   onApiKeySubmit: (key: string) => void;
+  userEmail: string;
 }
-
-const ApiKeyEntryScreen: React.FC<ApiKeyEntryScreenProps> = ({ onApiKeySubmit }) => {
+const ApiKeyEntryScreen: React.FC<ApiKeyEntryScreenProps> = ({ onApiKeySubmit, userEmail }) => {
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
 
@@ -431,8 +546,8 @@ const ApiKeyEntryScreen: React.FC<ApiKeyEntryScreenProps> = ({ onApiKeySubmit })
     <div className="flex items-center justify-center h-full w-full bg-gray-100">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">German Language Tutor</h1>
-          <p className="mt-2 text-sm text-gray-600">Please enter your Gemini API Key to begin.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome, {userEmail}!</h1>
+          <p className="mt-2 text-sm text-gray-600">Please enter your Gemini API Key to continue. This will be saved to your account.</p>
         </div>
         <div className="flex flex-col space-y-2">
           <label htmlFor="api-key-input" className="text-sm font-medium text-gray-700">Gemini API Key</label>
@@ -955,36 +1070,32 @@ const LessonPage: React.FC<LessonPageProps> = ({
 // LessonSelection.tsx
 interface LessonSelectionProps {
   isLoading: boolean;
-  selectedLanguage: string;
-  onLanguageChange: (language: string) => void;
-  selectedGermanLevel: string;
-  onGermanLevelChange: (level: string) => void;
-  selectedLessonId: string | null;
-  selectedSubTopicId: string | null;
-  onLessonClick: (lessonId: string, lessonTitle: string, lessonDescription: string) => void;
-  onSubTopicChange: (subTopicId: string | null, subTopicTitle: string | null, subTopicDescription: string | null) => void;
+  userEmail: string;
+  userData: UserData;
+  onUpdateUserData: (data: Partial<UserData>) => void;
   onStartLesson: (lessonId: string, lessonTitle: string, lessonDescription: string, subTopicId: string | null, subTopicTitle: string | null, subTopicDescription: string | null) => void;
   globalError: string | null;
   onClearError: () => void;
-  onClearApiKey: () => void;
+  onLogout: () => void;
 }
 
 const LessonSelection: React.FC<LessonSelectionProps> = ({
   isLoading,
-  selectedLanguage,
-  onLanguageChange,
-  selectedGermanLevel,
-  onGermanLevelChange,
-  selectedLessonId,
-  selectedSubTopicId,
-  onLessonClick,
-  onSubTopicChange,
+  userEmail,
+  userData,
+  onUpdateUserData,
   onStartLesson,
   globalError,
   onClearError,
-  onClearApiKey,
+  onLogout,
 }) => {
   const [isNavigatingToLessonPage, setIsNavigatingToLessonPage] = useState<boolean>(false);
+  
+  const selectedLanguage = userData.selectedLanguage || AVAILABLE_LANGUAGES[0];
+  const selectedGermanLevel = userData.selectedGermanLevel || AVAILABLE_GERMAN_LEVELS[0];
+  const selectedLessonId = userData.selectedLessonId || null;
+  const selectedSubTopicId = userData.selectedSubTopicId || null;
+
   const currentLessons: Lesson[] = GERMAN_LESSONS_BY_LEVEL.get(selectedGermanLevel) || [];
 
   const currentSelectedLesson = selectedLessonId ? currentLessons.find(l => l.id === selectedLessonId) : null;
@@ -992,6 +1103,33 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
     ? currentSelectedLesson.subTopics.find(st => st.id === selectedSubTopicId)
     : null;
 
+  const handleLanguageChange = (language: string) => {
+    onUpdateUserData({ 
+      selectedLanguage: language,
+      selectedLessonId: undefined, selectedLessonTitle: undefined, selectedLessonDescription: undefined,
+      selectedSubTopicId: undefined, selectedSubTopicTitle: undefined, selectedSubTopicDescription: undefined
+    });
+  };
+
+  const handleGermanLevelChange = (level: string) => {
+    onUpdateUserData({
+      selectedGermanLevel: level,
+      selectedLessonId: undefined, selectedLessonTitle: undefined, selectedLessonDescription: undefined,
+      selectedSubTopicId: undefined, selectedSubTopicTitle: undefined, selectedSubTopicDescription: undefined
+    });
+  };
+
+  const handleLessonClick = (lessonId: string, lessonTitle: string, lessonDescription: string) => {
+    onUpdateUserData({
+      selectedLessonId: lessonId, selectedLessonTitle: lessonTitle, selectedLessonDescription: lessonDescription,
+      selectedSubTopicId: undefined, selectedSubTopicTitle: undefined, selectedSubTopicDescription: undefined
+    });
+  };
+
+  const handleSubTopicChange = (subTopicId: string | null, subTopicTitle: string | null, subTopicDescription: string | null) => {
+    onUpdateUserData({ selectedSubTopicId: subTopicId || undefined, selectedSubTopicTitle: subTopicTitle || undefined, selectedSubTopicDescription: subTopicDescription || undefined });
+  };
+  
   useEffect(() => {
     if (
       selectedLessonId &&
@@ -1000,11 +1138,11 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
       currentSelectedLesson.subTopics.length > 0
     ) {
       const firstSubTopic = currentSelectedLesson.subTopics[0];
-      onSubTopicChange(firstSubTopic.id, firstSubTopic.title, firstSubTopic.description);
+      handleSubTopicChange(firstSubTopic.id, firstSubTopic.title, firstSubTopic.description);
     } else if (selectedLessonId && selectedSubTopicId && !currentSelectedSubTopic) {
-      onSubTopicChange(null, null, null);
+      handleSubTopicChange(null, null, null);
     }
-  }, [selectedLessonId, selectedSubTopicId, currentSelectedLesson, currentSelectedSubTopic, onSubTopicChange]);
+  }, [selectedLessonId, selectedSubTopicId, currentSelectedLesson]);
 
 
   const handleStartLessonClick = () => {
@@ -1034,12 +1172,15 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
       <div className="flex-shrink-0 pb-4 space-y-4">
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-gray-800">Choose Your Lesson</h2>
-            <button
-              onClick={onClearApiKey}
-              className="text-xs text-gray-500 hover:text-gray-800 hover:underline"
-            >
-              Change API Key
-            </button>
+            <div className="text-right">
+                <p className="text-xs text-gray-600">{userEmail}</p>
+                <button
+                onClick={onLogout}
+                className="text-xs text-red-500 hover:text-red-800 hover:underline"
+                >
+                Logout
+                </button>
+            </div>
         </div>
         
 
@@ -1061,7 +1202,7 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
             <select
               id="language-select"
               value={selectedLanguage}
-              onChange={(e) => onLanguageChange(e.target.value)}
+              onChange={(e) => handleLanguageChange(e.target.value)}
               disabled={selectOrCardDisabled}
               aria-disabled={selectOrCardDisabled}
               className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm bg-white
@@ -1083,7 +1224,7 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
             <select
               id="german-level-select"
               value={selectedGermanLevel}
-              onChange={(e) => onGermanLevelChange(e.target.value)}
+              onChange={(e) => handleGermanLevelChange(e.target.value)}
               disabled={selectOrCardDisabled}
               aria-disabled={selectOrCardDisabled}
               className={`mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm bg-white
@@ -1110,7 +1251,7 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
                 className={`bg-blue-50 border rounded-lg p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow duration-200 relative
                   ${selectedLessonId === lesson.id ? 'border-blue-600 ring-2 ring-blue-500' : 'border-blue-200'}
                   ${selectOrCardDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-                onClick={selectOrCardDisabled ? undefined : () => onLessonClick(lesson.id, lesson.title, lesson.description)}
+                onClick={selectOrCardDisabled ? undefined : () => handleLessonClick(lesson.id, lesson.title, lesson.description)}
                 role="button"
                 tabIndex={selectOrCardDisabled ? -1 : 0}
                 aria-pressed={selectedLessonId === lesson.id}
@@ -1131,7 +1272,7 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => {
                           const subTopic = lesson.subTopics?.find(st => st.id === e.target.value);
-                          onSubTopicChange(subTopic?.id || null, subTopic?.title || null, subTopic?.description || null);
+                          handleSubTopicChange(subTopic?.id || null, subTopic?.title || null, subTopic?.description || null);
                         }}
                         disabled={selectOrCardDisabled}
                         aria-disabled={selectOrCardDisabled}
@@ -1184,103 +1325,72 @@ const LessonSelection: React.FC<LessonSelectionProps> = ({
 
 // --- START OF APP COMPONENT ---
 type Page = 'lessonSelection' | 'lessonPage';
-
-const LS_API_KEY = 'germanTutor_apiKey';
-const LS_LANGUAGE = 'germanTutor_language';
-const LS_GERMAN_LEVEL = 'germanTutor_germanLevel';
-const LS_LESSON_ID = 'germanTutor_lessonId';
-const LS_LESSON_TITLE = 'germanTutor_lessonTitle';
-const LS_LESSON_DESCRIPTION = 'germanTutor_lessonDescription';
-const LS_SUBTOPIC_ID = 'germanTutor_subTopicId';
-const LS_SUBTOPIC_TITLE = 'germanTutor_subTopicTitle';
-const LS_SUBTOPIC_DESCRIPTION = 'germanTutor_subTopicDescription';
+type AuthState = 'loading' | 'signedOut' | 'signedIn';
 
 const App: React.FC = () => {
-  const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem(LS_API_KEY));
+  const [authState, setAuthState] = useState<AuthState>('loading');
+  const [user, setUser] = useState<firebase.User | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  
   const [currentPage, setCurrentPage] = useState<Page>('lessonSelection');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        const userRef = db.collection('users').doc(firebaseUser.uid);
+        const doc = await userRef.get();
+        if (doc.exists) {
+          setUserData(doc.data() as UserData);
+        } else {
+          // Create a new user document with defaults
+          const defaultData: UserData = {
+            selectedLanguage: AVAILABLE_LANGUAGES[0],
+            selectedGermanLevel: AVAILABLE_GERMAN_LEVELS[0],
+          };
+          await userRef.set(defaultData);
+          setUserData(defaultData);
+        }
+        setAuthState('signedIn');
+      } else {
+        setUser(null);
+        setUserData(null);
+        setAuthState('signedOut');
+      }
+      setIsLoading(false);
+    });
 
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(
-    localStorage.getItem(LS_LANGUAGE) || AVAILABLE_LANGUAGES[0]
-  );
-  const [selectedGermanLevel, setSelectedGermanLevel] = useState<string>(
-    localStorage.getItem(LS_GERMAN_LEVEL) || AVAILABLE_GERMAN_LEVELS[0]
-  );
-  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(
-    localStorage.getItem(LS_LESSON_ID)
-  );
-  const [selectedLessonTitle, setSelectedLessonTitle] = useState<string | null>(
-    localStorage.getItem(LS_LESSON_TITLE)
-  );
-  const [selectedLessonDescription, setSelectedLessonDescription] = useState<string | null>(
-    localStorage.getItem(LS_LESSON_DESCRIPTION)
-  );
-  const [selectedSubTopicId, setSelectedSubTopicId] = useState<string | null>(
-    localStorage.getItem(LS_SUBTOPIC_ID)
-  );
-  const [selectedSubTopicTitle, setSelectedSubTopicTitle] = useState<string | null>(
-    localStorage.getItem(LS_SUBTOPIC_TITLE)
-  );
-  const [selectedSubTopicDescription, setSelectedSubTopicDescription] = useState<string | null>(
-    localStorage.getItem(LS_SUBTOPIC_DESCRIPTION)
-  );
+    return () => unsubscribe();
+  }, []);
 
-  const handleApiKeySubmit = (key: string) => {
-    localStorage.setItem(LS_API_KEY, key);
-    setApiKey(key);
+  const handleAuthSuccess = () => {
+    // onAuthStateChanged will handle the rest
+    setIsLoading(true);
+  };
+  
+  const handleLogout = () => {
+    auth.signOut();
   };
 
-  const handleClearApiKey = () => {
-    localStorage.removeItem(LS_API_KEY);
-    setApiKey(null);
+  const handleUpdateUserData = async (data: Partial<UserData>) => {
+    if (!user) return;
+    const userRef = db.collection('users').doc(user.uid);
+    await userRef.set(data, { merge: true });
+    setUserData(prev => ({ ...prev, ...data }));
+  };
+
+  const handleApiKeySubmit = async (key: string) => {
+    await handleUpdateUserData({ apiKey: key });
   };
 
   const clearErrors = useCallback(() => {
     setGlobalError(null);
   }, []);
 
-  const saveTimeoutRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    saveTimeoutRef.current = setTimeout(() => {
-      localStorage.setItem(LS_LANGUAGE, selectedLanguage);
-      localStorage.setItem(LS_GERMAN_LEVEL, selectedGermanLevel);
-
-      if (selectedLessonId) localStorage.setItem(LS_LESSON_ID, selectedLessonId); else localStorage.removeItem(LS_LESSON_ID);
-      if (selectedLessonTitle) localStorage.setItem(LS_LESSON_TITLE, selectedLessonTitle); else localStorage.removeItem(LS_LESSON_TITLE);
-      if (selectedLessonDescription) localStorage.setItem(LS_LESSON_DESCRIPTION, selectedLessonDescription); else localStorage.removeItem(LS_LESSON_DESCRIPTION);
-      if (selectedSubTopicId) localStorage.setItem(LS_SUBTOPIC_ID, selectedSubTopicId); else localStorage.removeItem(LS_SUBTOPIC_ID);
-      if (selectedSubTopicTitle) localStorage.setItem(LS_SUBTOPIC_TITLE, selectedSubTopicTitle); else localStorage.removeItem(LS_SUBTOPIC_TITLE);
-      if (selectedSubTopicDescription) localStorage.setItem(LS_SUBTOPIC_DESCRIPTION, selectedSubTopicDescription); else localStorage.removeItem(LS_SUBTOPIC_DESCRIPTION);
-      
-    }, 300) as unknown as number;
-
-    return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
-  }, [
-    selectedLanguage, selectedGermanLevel, selectedLessonId, selectedLessonTitle,
-    selectedLessonDescription, selectedSubTopicId, selectedSubTopicTitle,
-    selectedSubTopicDescription,
-  ]);
-
-  const handleLanguageChange = useCallback((language: string) => { clearErrors(); setSelectedLanguage(language); setSelectedLessonId(null); setSelectedSubTopicId(null); }, [clearErrors]);
-  const handleGermanLevelChange = useCallback((level: string) => { clearErrors(); setSelectedGermanLevel(level); setSelectedLessonId(null); setSelectedSubTopicId(null); }, [clearErrors]);
-  const handleLessonClick = useCallback((lessonId: string, lessonTitle: string, lessonDescription: string) => { clearErrors(); setSelectedLessonId(lessonId); setSelectedLessonTitle(lessonTitle); setSelectedLessonDescription(lessonDescription); setSelectedSubTopicId(null); setSelectedSubTopicTitle(null); setSelectedSubTopicDescription(null); }, [clearErrors]);
-  const handleSubTopicChange = useCallback((subTopicId: string | null, subTopicTitle: string | null, subTopicDescription: string | null) => { setSelectedSubTopicId(subTopicId); setSelectedSubTopicTitle(subTopicTitle); setSelectedSubTopicDescription(subTopicDescription); }, []);
-
-  const handleStartLesson = useCallback((...args: any[]) => {
+  const handleStartLesson = useCallback(() => {
     clearErrors();
-    const [lessonId, lessonTitle, lessonDescription, subTopicId, subTopicTitle, subTopicDescription] = args;
-    
-    setSelectedLessonId(lessonId); 
-    setSelectedLessonTitle(lessonTitle); 
-    setSelectedLessonDescription(lessonDescription);
-    setSelectedSubTopicId(subTopicId); 
-    setSelectedSubTopicTitle(subTopicTitle); 
-    setSelectedSubTopicDescription(subTopicDescription);
     setCurrentPage('lessonPage');
   }, [clearErrors]);
 
@@ -1291,53 +1401,67 @@ const App: React.FC = () => {
     setCurrentPage('lessonSelection');
   }, []);
 
-  if (!apiKey) {
-    return <ApiKeyEntryScreen onApiKeySubmit={handleApiKeySubmit} />;
+  if (isLoading || authState === 'loading') {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </div>
+    );
+  }
+  
+  if (authState === 'signedOut') {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
   }
 
-  return (
-    <div className="relative flex flex-col lg:flex-row h-full w-full max-w-6xl mx-auto bg-gray-100 rounded-xl shadow-2xl p-4">
-      {currentPage === 'lessonSelection' ? (
-        <div className="flex flex-col lg:flex-row h-full w-full">
-          <div className="lg:w-1/2 p-4 flex flex-col items-center justify-center bg-gray-800 relative text-white">
-            <h1 className="text-3xl font-bold mb-6 text-center" aria-live="polite">German Language Tutor</h1>
-            <p className="text-xl md:text-2xl font-semibold mb-2 text-center">Your personal German teacher</p>
-            <p className="text-lg md:text-xl text-blue-300 text-center mb-4">(explaining in {selectedLanguage})</p>
-            <p className="text-gray-300 text-sm text-center">ANAYA is ready to help you learn!</p>
-          </div>
-          <div className="lg:w-1/2 flex flex-col bg-white h-full">
-            <LessonSelection
-              isLoading={isLoading}
-              selectedLanguage={selectedLanguage}
-              onLanguageChange={handleLanguageChange}
-              selectedGermanLevel={selectedGermanLevel}
-              onGermanLevelChange={handleGermanLevelChange}
-              selectedLessonId={selectedLessonId}
-              selectedSubTopicId={selectedSubTopicId}
-              onLessonClick={handleLessonClick}
-              onSubTopicChange={handleSubTopicChange}
-              onStartLesson={handleStartLesson}
-              globalError={globalError}
-              onClearError={clearErrors}
-              onClearApiKey={handleClearApiKey}
+  if (authState === 'signedIn' && !userData?.apiKey) {
+    return <ApiKeyEntryScreen onApiKeySubmit={handleApiKeySubmit} userEmail={user?.email || ''} />;
+  }
+  
+  if (authState === 'signedIn' && userData?.apiKey) {
+    return (
+        <div className="relative flex flex-col lg:flex-row h-full w-full max-w-6xl mx-auto bg-gray-100 rounded-xl shadow-2xl p-4">
+        {currentPage === 'lessonSelection' ? (
+            <div className="flex flex-col lg:flex-row h-full w-full">
+            <div className="lg:w-1/2 p-4 flex flex-col items-center justify-center bg-gray-800 relative text-white">
+                <h1 className="text-3xl font-bold mb-6 text-center" aria-live="polite">German Language Tutor</h1>
+                <p className="text-xl md:text-2xl font-semibold mb-2 text-center">Your personal German teacher</p>
+                <p className="text-lg md:text-xl text-blue-300 text-center mb-4">(explaining in {userData.selectedLanguage || AVAILABLE_LANGUAGES[0]})</p>
+                <p className="text-gray-300 text-sm text-center">ANAYA is ready to help you learn!</p>
+            </div>
+            <div className="lg:w-1/2 flex flex-col bg-white h-full">
+                <LessonSelection
+                isLoading={isLoading}
+                userEmail={user?.email || ''}
+                userData={userData}
+                onUpdateUserData={handleUpdateUserData}
+                onStartLesson={handleStartLesson}
+                globalError={globalError}
+                onClearError={clearErrors}
+                onLogout={handleLogout}
+                />
+            </div>
+            </div>
+        ) : (
+            <LessonPage
+            apiKey={userData.apiKey}
+            selectedLanguage={userData.selectedLanguage || AVAILABLE_LANGUAGES[0]}
+            selectedGermanLevel={userData.selectedGermanLevel || AVAILABLE_GERMAN_LEVELS[0]}
+            selectedLessonTitle={userData.selectedLessonTitle || null}
+            selectedLessonDescription={userData.selectedLessonDescription || null}
+            selectedSubTopicTitle={userData.selectedSubTopicTitle || null}
+            selectedSubTopicDescription={userData.selectedSubTopicDescription || null}
+            onStopLesson={handleStopLesson}
+            isLoadingApp={isLoading}
             />
-          </div>
+        )}
         </div>
-      ) : (
-        <LessonPage
-          apiKey={apiKey}
-          selectedLanguage={selectedLanguage}
-          selectedGermanLevel={selectedGermanLevel}
-          selectedLessonTitle={selectedLessonTitle}
-          selectedLessonDescription={selectedLessonDescription}
-          selectedSubTopicTitle={selectedSubTopicTitle}
-          selectedSubTopicDescription={selectedSubTopicDescription}
-          onStopLesson={handleStopLesson}
-          isLoadingApp={isLoading}
-        />
-      )}
-    </div>
-  );
+    );
+  }
+
+  return null; // Should not happen
 };
 // --- END OF APP COMPONENT ---
 
