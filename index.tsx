@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { v4 as uuidv4 } from 'uuid';
@@ -70,16 +69,15 @@ const firebaseConfig = {
   appId: "1:718186572803:web:7ee55deaca5560c713b236"
 };
 
+// Use window.firebase to explicitly access the global firebase object
+const firebase = (window as any).firebase;
+
 // Initialize Firebase
-// @ts-ignore
 if (!firebase.apps.length) {
-  // @ts-ignore
   firebase.initializeApp(firebaseConfig);
 }
 
-// @ts-ignore
 const auth = firebase.auth();
-// @ts-ignore
 const db = firebase.firestore();
 // --- END OF FIREBASE SETUP ---
 
@@ -1330,8 +1328,7 @@ type AuthState = 'loading' | 'signedOut' | 'signedIn';
 
 const App: React.FC = () => {
   const [authState, setAuthState] = useState<AuthState>('loading');
-  // @ts-ignore
-  const [user, setUser] = useState<firebase.User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   
   const [currentPage, setCurrentPage] = useState<Page>('lessonSelection');
@@ -1339,8 +1336,7 @@ const App: React.FC = () => {
   const [globalError, setGlobalError] = useState<string | null>(null);
   
   useEffect(() => {
-    // @ts-ignore
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: any) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         const userRef = db.collection('users').doc(firebaseUser.uid);
@@ -1381,7 +1377,7 @@ const App: React.FC = () => {
     if (!user) return;
     const userRef = db.collection('users').doc(user.uid);
     await userRef.set(data, { merge: true });
-    setUserData(prev => ({ ...prev, ...data }));
+    setUserData(prev => ({ ...prev!, ...data }));
   };
 
   const handleApiKeySubmit = async (key: string) => {
