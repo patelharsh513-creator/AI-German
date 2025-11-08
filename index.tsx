@@ -1,12 +1,9 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { v4 as uuidv4 } from 'uuid';
 import { GoogleGenAI, LiveServerMessage, Blob as GenAIBlob, FunctionCall, Modality } from "@google/genai";
-// FIX: Add missing firebase imports
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
 
 // --- START OF INLINED TYPES ---
 export enum MessageRole {
@@ -74,11 +71,15 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
+// @ts-ignore
 if (!firebase.apps.length) {
+  // @ts-ignore
   firebase.initializeApp(firebaseConfig);
 }
 
+// @ts-ignore
 const auth = firebase.auth();
+// @ts-ignore
 const db = firebase.firestore();
 // --- END OF FIREBASE SETUP ---
 
@@ -1329,6 +1330,7 @@ type AuthState = 'loading' | 'signedOut' | 'signedIn';
 
 const App: React.FC = () => {
   const [authState, setAuthState] = useState<AuthState>('loading');
+  // @ts-ignore
   const [user, setUser] = useState<firebase.User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   
@@ -1337,6 +1339,7 @@ const App: React.FC = () => {
   const [globalError, setGlobalError] = useState<string | null>(null);
   
   useEffect(() => {
+    // @ts-ignore
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
