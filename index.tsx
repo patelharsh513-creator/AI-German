@@ -2,7 +2,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { v4 as uuidv4 } from 'uuid';
-import { GoogleGenAI, LiveServerMessage, Blob as GenAIBlob, Modality, FunctionCall } from "@google/genai";
+// FIX: Import `Modality` from `@google/genai` to use in `LIVE_SESSION_BASE_CONFIG`.
+import { GoogleGenAI, LiveServerMessage, Blob as GenAIBlob, FunctionCall, Modality } from "@google/genai";
 
 // --- START OF INLINED TYPES ---
 export enum MessageRole {
@@ -159,10 +160,10 @@ Start by warmly greeting the student in ${explanationLanguage}. Then, immediatel
 };
 
 
+// FIX: Use `Modality.AUDIO` instead of the string 'AUDIO' to match the expected type.
 export const LIVE_SESSION_BASE_CONFIG = {
   responseModalities: [Modality.AUDIO],
   outputAudioTranscription: {},
-  inputAudioTranscription: {},
   speechConfig: {
     voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
   },
@@ -230,15 +231,6 @@ function createBlob(data: Float32Array): GenAIBlob {
   };
 }
 
-function mapLanguageToCode(language: string): string {
-  const languageMap: { [key: string]: string } = {
-    'English': 'en-US',
-    'Gujarati': 'gu-IN',
-    'Hindi': 'hi-IN',
-  };
-  return languageMap[language] || 'en-US';
-}
-
 export async function initLiveSession(
   stream: MediaStream,
   callbacks: LiveSessionCallbacks,
@@ -268,9 +260,7 @@ export async function initLiveSession(
   const liveSessionConfig = {
     ...LIVE_SESSION_BASE_CONFIG,
     systemInstruction,
-    inputAudioTranscription: {
-      languageCodes: [mapLanguageToCode(explanationLanguage), 'de'],
-    },
+    inputAudioTranscription: {},
   };
 
   const sessionPromise = ai.live.connect({
