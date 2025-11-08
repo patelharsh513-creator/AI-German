@@ -1,0 +1,7 @@
+{
+  "name": "AI German",
+  "description": "An AI chatbot for learning German with ANAYA, featuring text-based guidance, real-time word display, and structured lessons with explanations in your selected local language, delivered through a live audio conversation.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
