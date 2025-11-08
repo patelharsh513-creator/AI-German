@@ -4,139 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>German Language Tutor</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🇩🇪</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      body, html { margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; background-color: #f3f4f6; }
-      #root { width: 100%; max-width: 72rem; height: 100%; margin: auto; }
-      .bg-gray-100 { background-color: #f3f4f6; }
-      .flex { display: flex; }
-      .items-center { align-items: center; }
-      .justify-center { justify-content: center; }
-      .h-screen { height: 100vh; }
-      .w-full { width: 100%; }
-      .max-w-6xl { max-width: 72rem; }
-      .h-full { height: 100%; }
-      .p-4 { padding: 1rem; }
-      .relative { position: relative; }
-      .flex-col { flex-direction: column; }
-      .lg\:flex-row { @media (min-width: 1024px) { flex-direction: row; } }
-      .mx-auto { margin-left: auto; margin-right: auto; }
-      .bg-white { background-color: #ffffff; }
-      .rounded-xl { border-radius: 0.75rem; }
-      .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
-      .lg\:w-1\/2 { @media (min-width: 1024px) { width: 50%; } }
-      .bg-gray-800 { background-color: #1f2937; }
-      .text-white { color: #ffffff; }
-      .text-3xl { font-size: 1.875rem; }
-      .font-bold { font-weight: 700; }
-      .mb-6 { margin-bottom: 1.5rem; }
-      .text-center { text-align: center; }
-      .text-xl { font-size: 1.25rem; }
-      .md\:text-2xl { @media (min-width: 768px) { font-size: 1.5rem; } }
-      .font-semibold { font-weight: 600; }
-      .mb-2 { margin-bottom: 0.5rem; }
-      .text-blue-300 { color: #93c5fd; }
-      .text-lg { font-size: 1.125rem; }
-      .mb-4 { margin-bottom: 1rem; }
-      .text-gray-300 { color: #d1d5db; }
-      .text-sm { font-size: 0.875rem; }
-      .text-gray-800 { color: #1f2937; }
-      .rounded-lg { border-radius: 0.5rem; }
-      .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-      .flex-shrink-0 { flex-shrink: 0; }
-      .pb-4 { padding-bottom: 1rem; }
-      .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
-      .bg-red-100 { background-color: #fee2e2; }
-      .border-l-4 { border-left-width: 4px; }
-      .border-red-500 { border-color: #ef4444; }
-      .text-red-700 { color: #b91c1c; }
-      .rounded-md { border-radius: 0.375rem; }
-      .absolute { position: absolute; }
-      .top-0 { top: 0; }
-      .bottom-0 { bottom: 0; }
-      .right-0 { right: 0; }
-      .px-4 { padding-left: 1rem; padding-right: 1rem; }
-      .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
-      .fill-current { fill: currentColor; }
-      .h-6 { height: 1.5rem; }
-      .w-6 { width: 1.5rem; }
-      .grid { display: grid; }
-      .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-      .sm\:grid-cols-2 { @media (min-width: 640px) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      .gap-4 { gap: 1rem; }
-      .block { display: block; }
-      .font-medium { font-weight: 500; }
-      .text-gray-700 { color: #374151; }
-      .mb-1 { margin-bottom: 0.25rem; }
-      .mt-1 { margin-top: 0.25rem; }
-      .pl-3 { padding-left: 0.75rem; }
-      .pr-10 { padding-right: 2.5rem; }
-      .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-      .border-gray-300 { border-color: #d1d5db; }
-      .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); }
-      .opacity-50 { opacity: 0.5; }
-      .cursor-not-allowed { cursor: not-allowed; }
-      .flex-grow { flex-grow: 1; }
-      .overflow-y-auto { overflow-y: auto; }
-      .border-t { border-top-width: 1px; }
-      .border-gray-200 { border-color: #e5e7eb; }
-      .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
-      .md\:grid-cols-2 { @media (min-width: 768px) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      .bg-blue-50 { background-color: #eff6ff; }
-      .border { border-width: 1px; }
-      .justify-between { justify-content: space-between; }
-      .hover\:shadow-md:hover { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
-      .border-blue-600 { border-color: #2563eb; }
-      .ring-2 { --tw-ring-offset-shadow: 0 0 #0000; --tw-ring-shadow: 0 0 #0000; box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), 0 0 #0000; ring-width: 2px; }
-      .ring-blue-500 { --tw-ring-color: #3b82f6; }
-      .border-blue-200 { border-color: #bfdbfe; }
-      .opacity-60 { opacity: 0.6; }
-      .cursor-pointer { cursor: pointer; }
-      .text-blue-800 { color: #1e40af; }
-      .text-xs { font-size: 0.75rem; }
-      .text-gray-600 { color: #4b5563; }
-      .text-gray-500 { color: #6b7285; }
-      .pt-6 { padding-top: 1.5rem; }
-      .bg-blue-300 { background-color: #93c5fd; }
-      .bg-blue-600 { background-color: #2563eb; }
-      .hover\:bg-blue-700:hover { background-color: #1d4ed8; }
-      .min-h-\[250px\] { min-height: 250px; }
-      .lg\:min-h-full { @media (min-width: 1024px) { min-height: 100%; } }
-      .max-w-sm { max-width: 24rem; }
-      .bg-gray-700 { background-color: #374151; }
-      .border-2 { border-width: 2px; }
-      .border-transparent { border-color: transparent; }
-      .z-20 { z-index: 20; }
-      .w-24 { width: 6rem; }
-      .h-24 { height: 6rem; }
-      .rounded-full { border-radius: 9999px; }
-      .overflow-hidden { overflow: hidden; }
-      .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-      .bg-gray-900 { background-color: #111827; }
-      .border-gray-600 { border-color: #4b5563; }
-      .lg\:w-2\/3 { @media (min-width: 1024px) { width: 66.666667%; } }
-      .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
-      .bg-blue-100 { background-color: #dbeafe; }
-      .self-end { align-self: flex-end; }
-      .rounded-br-none { border-bottom-right-radius: 0; }
-      .bg-green-100 { background-color: #dcfce7; }
-      .text-green-800 { color: #166534; }
-      .self-start { align-self: flex-start; }
-      .rounded-bl-none { border-bottom-left-radius: 0; }
-      .bg-blue-50 { background-color: #eff6ff; }
-      .text-blue-700 { color: #1d4ed8; }
-      .bg-green-50 { background-color: #f0fdf4; }
-      .text-green-700 { color: #15803d; }
-      .mt-4 { margin-top: 1rem; }
-      .text-red-600 { color: #dc2626; }
-      .sticky { position: sticky; }
-      .z-10 { z-index: 10; }
-      .sm\:flex-row { @media (min-width: 640px) { flex-direction: row; } }
-      .sm\:space-y-0 > :not([hidden]) ~ :not([hidden]) { margin-top: 0; }
-      .sm\:space-x-4 > :not([hidden]) ~ :not([hidden]) { margin-left: 1rem; }
-      .bg-red-300 { background-color: #fca5a5; }
-      .bg-red-600 { background-color: #dc2626; }
-      .hover\:bg-red-700:hover { background-color: #b91c1c; }
       @keyframes pulse-speak {
         0% { transform: scale(1); box-shadow: 0 0 0 0px rgba(255, 255, 255, 0.7); }
         50% { transform: scale(1.02); box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
@@ -145,35 +14,21 @@
       .speaking-pulse {
         animation: pulse-speak 1.5s infinite ease-out;
       }
-      .animate-bounce-slow {
-        animation: bounce 1.5s infinite;
-      }
-      @keyframes bounce {
-        0%, 100% {
-          transform: translateY(-15%);
-          animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
-        }
-        50% {
-          transform: translateY(0);
-          animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
-        }
-      }
     </style>
 <script type="importmap">
 {
   "imports": {
     "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.29.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
   }
 }
 </script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center h-screen">
     <div id="root" class="w-full max-w-6xl h-full"></div>
-    <script type="module" src="./code.js"></script>
+    <script type="module" src="/code.js"></script>
 </body>
 </html>
